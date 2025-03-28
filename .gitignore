@@ -23,3 +23,10 @@ go.work.sum
 
 # env file
 .env
+
+idf/build
+.vscode/settings.json
+idf/sdkconfig
+idf/sdkconfig.old
+idf/main/CMakeLists.txt
+idf/CMakeLists.txt

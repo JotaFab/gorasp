@@ -3,6 +3,7 @@ module github.com/JotaFab/gorasp
 go 1.24.1
 
 require (
+	github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07
 	go.bug.st/serial v1.6.4
 	tinygo.org/x/bluetooth v0.11.0
 )

@@ -24,4 +24,13 @@ func main() {
 		log.Fatal("Error enviando datos:", err)
 	}
 	fmt.Printf("Mensaje enviado: %s (%d bytes)\n", msg, n)
+
+	// Leer respuesta del ESP32
+	buf := make([]byte, 128)
+	n, err = port.Read(buf)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("ESP32 dice: %s\n", buf[:n])
 }
