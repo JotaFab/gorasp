@@ -21,7 +21,7 @@ func scanBluetoothDevices() []string {
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
 		fields := strings.Fields(line)
-		if len(fields) >= 2 && fields[0] != "Scanning..." {
+		if len(fields) >= 2 && fields[0] != "Scanning" {
 			devices = append(devices, fields[0])
 			fmt.Printf("Dispositivo encontrado: %s - %s\n", fields[0], strings.Join(fields[1:], " "))
 		}
@@ -57,7 +57,11 @@ func main() {
 
 	var choice int
 	fmt.Print("Ingrese el número del dispositivo: ")
-	fmt.Scan(&choice)
+	_, err := fmt.Scan(&choice)
+	if err != nil {
+		fmt.Println("Error al leer la entrada.")
+		return
+	}
 
 	if choice >= 0 && choice < len(devices) {
 		deauthBluetooth(devices[choice])
