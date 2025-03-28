@@ -2,11 +2,24 @@ package main
 
 import (
 	"fmt"
+	"machine"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 )
+
+// Inicializa el LED en el ESP32
+func blinkLED() {
+	led := machine.LED
+	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	for i := 0; i < 5; i++ {
+		led.High()
+		time.Sleep(500 * time.Millisecond)
+		led.Low()
+		time.Sleep(500 * time.Millisecond)
+	}
+}
 
 // Verifica si estamos en una Raspberry Pi o un ESP32
 func checkDevice() string {
@@ -65,6 +78,10 @@ func deauthBluetooth(target string) {
 func main() {
 	device := checkDevice()
 	fmt.Println("Ejecutando en:", device)
+
+	if device == "ESP32" {
+		go blinkLED()
+	}
 
 	if device == "Unknown" {
 		fmt.Println("Dispositivo no reconocido. Puede que algunas funciones no sean compatibles.")
