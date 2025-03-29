@@ -5,24 +5,28 @@
 #include "esp_bt.h"
 #include "esp_bt_main.h"
 #include "esp_gap_bt_api.h"
-#include <inttypes.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <inttypes.h>
 
-static const char *TAG = "BT_SCAN";
+static const char *TAG = "BT_DISCOVERABLE";
 
 void bt_gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
 {
-    switch (event) {
+    switch (event)
+    {
     case ESP_BT_GAP_DISC_RES_EVT:
         ESP_LOGI(TAG, "Dispositivo encontrado: MAC: %02X:%02X:%02X:%02X:%02X:%02X",
                  param->disc_res.bda[0], param->disc_res.bda[1], param->disc_res.bda[2],
                  param->disc_res.bda[3], param->disc_res.bda[4], param->disc_res.bda[5]);
         break;
     case ESP_BT_GAP_DISC_STATE_CHANGED_EVT:
-        if (param->disc_st_chg.state == ESP_BT_GAP_DISCOVERY_STARTED) {
+        if (param->disc_st_chg.state == ESP_BT_GAP_DISCOVERY_STARTED)
+        {
             ESP_LOGI(TAG, "Escaneo iniciado.");
-        } else if (param->disc_st_chg.state == ESP_BT_GAP_DISCOVERY_STOPPED) {
+        }
+        else if (param->disc_st_chg.state == ESP_BT_GAP_DISCOVERY_STOPPED)
+        {
             ESP_LOGI(TAG, "Escaneo finalizado.");
         }
         break;
@@ -36,8 +40,10 @@ void app_main(void)
 {
     esp_err_t ret;
 
+    // Inicializar NVS (necesario para calibración RF y datos persistentes)
     ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
         ESP_ERROR_CHECK(nvs_flash_erase());
         ESP_ERROR_CHECK(nvs_flash_init());
     }
@@ -45,46 +51,59 @@ void app_main(void)
 
     ESP_LOGI(TAG, "Inicializando Bluetooth...");
 
+    // Configurar el controlador BT con la configuración por defecto
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
 
-    if (esp_bt_controller_get_status() != ESP_BT_CONTROLLER_STATUS_IDLE) {
+    // Si el controlador ya está inicializado, deshabilitarlo y desinicializarlo
+    if (esp_bt_controller_get_status() != ESP_BT_CONTROLLER_STATUS_IDLE)
+    {
         ESP_LOGW(TAG, "El controlador Bluetooth ya está inicializado, desinicializando...");
         ESP_ERROR_CHECK(esp_bt_controller_disable());
         ESP_ERROR_CHECK(esp_bt_controller_deinit());
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
+    // Inicializar y habilitar el controlador BT en modo dual (BTDM)
     ESP_LOGI(TAG, "Inicializando el controlador BT...");
     ESP_ERROR_CHECK(esp_bt_controller_init(&bt_cfg));
-    
-    // Cambiamos a modo Classic para pruebas:
-    ESP_LOGI(TAG, "Habilitando el controlador BT (Classic)...");
+    ESP_LOGI(TAG, "Habilitando el controlador BT (Dual Mode)...");
     ESP_ERROR_CHECK(esp_bt_controller_enable(ESP_BT_MODE_BTDM));
-
-    if (esp_bt_controller_get_status() != ESP_BT_CONTROLLER_STATUS_ENABLED) {
+    if (esp_bt_controller_get_status() != ESP_BT_CONTROLLER_STATUS_ENABLED)
+    {
         ESP_LOGE(TAG, "El controlador Bluetooth NO se pudo habilitar");
         return;
     }
     ESP_LOGI(TAG, "Controlador BT habilitado.");
 
-    // Esperamos un poco antes de inicializar Bluedroid
-    vTaskDelay(pdMS_TO_TICKS(2000));
-    ESP_LOGI(TAG, "Heap libre antes de Bluedroid: %" PRIu32, esp_get_free_heap_size());
-
+    // Inicializar y habilitar la pila Bluedroid
     ESP_LOGI(TAG, "Inicializando Bluedroid...");
     ESP_ERROR_CHECK(esp_bluedroid_init());
-    ESP_ERROR_CHECK(esp_bluedroid_enable());
     ESP_LOGI(TAG, "Bluedroid habilitado correctamente.");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ESP_ERROR_CHECK(esp_bluedroid_enable());
 
+    // Establecer el nombre del dispositivo para facilitar su identificación
+    ESP_ERROR_CHECK(esp_bt_gap_set_device_name("ESP32_BT"));
+    ESP_LOGI(TAG, "Nombre del dispositivo configurado: ESP32_BT");
+
+    // Configurar el dispositivo como conectable y descubrible
+    ret = esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Error al configurar modo de escaneo: %s", esp_err_to_name(ret));
+    }
+    else
+    {
+        ESP_LOGI(TAG, "Modo de escaneo configurado: Conectable y Descubriible");
+    }
+
+    // Registrar callback GAP (opcional, para mostrar eventos)
     ESP_ERROR_CHECK(esp_bt_gap_register_callback(bt_gap_callback));
     ESP_LOGI(TAG, "Callback GAP registrado.");
 
-    vTaskDelay(pdMS_TO_TICKS(500));
-
-    ESP_LOGI(TAG, "Iniciando escaneo de dispositivos Bluetooth...");
-    ESP_ERROR_CHECK(esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY, 10, 0));
-
-    while (1) {
+    // Mantener la tarea en ejecución
+    while (1)
+    {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

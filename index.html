@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Serial Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #messages { width: 80%; height: 300px; overflow-y: auto; border: 1px solid black; padding: 10px; margin: 20px auto; }
+        input, button { padding: 10px; font-size: 16px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>ESP32 Serial Chat</h1>
+    <div id="messages"></div>
+    <input type="text" id="commandInput" placeholder="Type a command...">
+    <button onclick="sendCommand()">Send</button>
+
+    <script>
+        const messagesDiv = document.getElementById("messages");
+
+        async function sendCommand() {
+            const command = document.getElementById("commandInput").value;
+            if (!command.trim()) return;
+            
+            fetch("/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ command })
+            });
+
+            document.getElementById("commandInput").value = "";
+        }
+
+        async function fetchMessages() {
+            const response = await fetch("/receive");
+            const data = await response.json();
+            data.messages.forEach(msg => {
+                const p = document.createElement("p");
+                p.textContent = "ESP32: " + msg;
+                messagesDiv.appendChild(p);
+            });
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        setInterval(fetchMessages, 1000);
+    </script>
+</body>
+</html>
+
