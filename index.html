@@ -36,12 +36,14 @@
 
             websocket.onclose = function(event) {
                 console.log("WebSocket connection closed.");
+                console.log("Close event details:", event);
                 // Attempt to reconnect after a delay
                 setTimeout(connectWebSocket, 3000);
             };
 
             websocket.onerror = function(error) {
                 console.error("WebSocket error:", error);
+                console.error("Error details:", error.message || error);
             };
         }
 

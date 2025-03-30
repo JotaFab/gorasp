@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	portName      = "/dev/ttyUSB1" // Adjust based on your setup
+	portName      = "/dev/ttyUSB0" // Adjust based on your setup
 	baudRate      = 115200
 	serialPort    *serial.Port
 	messageBuffer []string
@@ -118,7 +118,7 @@ var upgrader = websocket.Upgrader{
 func serveWs(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println(err)
+		log.Println("WebSocket upgrade error:", err) // More specific error message
 		return
 	}
 	defer conn.Close()
