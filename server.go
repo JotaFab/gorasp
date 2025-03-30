@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"runtime"
 	"sync"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 )
 
 var (
-	portName      = "/dev/ttyUSB0" // Adjust based on your setup
+	portName      string // Adjust based on your setup
 	baudRate      = 115200
 	serialPort    *serial.Port
 	messageBuffer []string
@@ -24,7 +25,7 @@ var (
 )
 
 // Initialize the serial connection
-func initSerial() error {
+func initSerial(portName string) error {
 	config := &serial.Config{Name: portName, Baud: baudRate}
 	var err error
 	serialPort, err = serial.OpenPort(config)
@@ -141,15 +142,58 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func main() {
-	if err := initSerial(); err != nil {
-		log.Fatal("Failed to open serial port:", err)
+func findSerialPort() (string, error) {
+	var candidates []string
+
+	if runtime.GOOS == "linux" {
+		candidates = []string{"/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyACM0", "/dev/ttyACM1"}
+	} else {
+		return "", fmt.Errorf("unsupported operating system")
 	}
 
+	for _, port := range candidates {
+		config := &serial.Config{Name: port, Baud: baudRate}
+		s, err := serial.OpenPort(config)
+		if err == nil {
+			s.Close()
+			fmt.Println("Found serial port:", port)
+			return port, nil
+		}
+		fmt.Println("Attempted", port, "Error:", err)
+	}
+
+	return "", fmt.Errorf("no serial port found")
+}
+
+func connectSerialHandler(w http.ResponseWriter, r *http.Request) {
+	foundPort, err := findSerialPort()
+	if err != nil {
+		log.Println("Error finding serial port:", err)
+		http.Error(w, "Failed to find serial port", http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"status": "error", "error": err.Error()})
+		return
+	}
+
+	err = initSerial(foundPort)
+	if err != nil {
+		log.Println("Error initializing serial port:", err)
+		http.Error(w, "Failed to initialize serial port", http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"status": "error", "error": err.Error()})
+		return
+	}
+
+	portName = foundPort // Update global portName
+	fmt.Println("Serial port connected on", portName)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success", "port": portName})
+}
+
+func main() {
 	http.HandleFunc("/", servePage)
 	http.HandleFunc("/send", sendCommand)
 	http.HandleFunc("/receive", receiveMessages)
 	http.HandleFunc("/ws", serveWs) // Register WebSocket endpoint
+	http.HandleFunc("/connect_serial", connectSerialHandler)
 
 	fmt.Println("Server started on port 5000")
 	log.Fatal(http.ListenAndServe(":5000", nil))
