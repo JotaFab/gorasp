@@ -6,18 +6,20 @@ import (
 	"time"
 )
 
-
-
 func main() {
-	serialHandler = &SerialHandler{baudRate: baudRate}
+
+	myHandler = mmuxHandler()
+
+	// Configure the server
 	s := &http.Server{
-		Addr:           ":8080",
+		Addr:           ":5000",
 		Handler:        myHandler,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-	myHandler = mmuxHandler()
 
+	log.Println("Serving on: ", s.Addr)
 	log.Fatal(s.ListenAndServe())
 }
+

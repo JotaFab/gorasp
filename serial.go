@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/tarm/serial"
 )
@@ -86,12 +87,12 @@ func (sh *SerialHandler) ReadSerial(messageBuffer *[]string, bufferMutex *sync.M
 				// Clean up non-ASCII characters
 				cleanedMsg := ""
 				for _, r := range msg {
-					if r >= ' ' && r <= '~' { // Basic ASCII range
+					if r >= ' ' && r <= '~' || utf8.RuneLen(r) > 1 { // Basic ASCII range or UTF-8
 						cleanedMsg += string(r)
 					}
 				}
 
-				log.Println("Received:", cleanedMsg)
+				fmt.Println(cleanedMsg)
 				bufferMutex.Lock()
 				*messageBuffer = append(*messageBuffer, cleanedMsg) // Append to message buffer
 				bufferMutex.Unlock()

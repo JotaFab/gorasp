@@ -17,11 +17,12 @@ import (
 var (
 	portName      string // Adjust based on your setup
 	baudRate      = 115200
-	serialHandler *SerialHandler
 	messageBuffer []string
 	bufferMutex   sync.Mutex
 	tmpl          = template.Must(template.ParseFiles("index.html"))
 	myHandler     *http.ServeMux
+	// Initialize serialHandler and myHandler
+	serialHandler = &SerialHandler{baudRate: baudRate}
 )
 
 // Serve the HTML page
@@ -53,17 +54,6 @@ func sendCommand(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Retrieve received messages
-func receiveMessages(w http.ResponseWriter, r *http.Request) {
-	bufferMutex.Lock()
-	messages := messageBuffer
-	messageBuffer = []string{}
-	bufferMutex.Unlock()
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string][]string{"messages": messages})
-}
-
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -81,9 +71,22 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
+	// Send the entire messageBuffer to the new client
+	bufferMutex.Lock()
+	for _, msg := range messageBuffer {
+		err = conn.WriteMessage(websocket.TextMessage, []byte(msg))
+		if err != nil {
+			log.Println("WebSocket write error:", err)
+			bufferMutex.Unlock()
+			return
+		}
+	}
+	bufferMutex.Unlock()
+
 	for {
 		bufferMutex.Lock()
 		if len(messageBuffer) > 0 {
+			// Send only the new messages
 			for _, msg := range messageBuffer {
 				err = conn.WriteMessage(websocket.TextMessage, []byte(msg))
 				if err != nil {
@@ -145,16 +148,31 @@ func connectSerialHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "success", "port": portName})
+	return
 }
 
-func mmuxHandler()  *http.ServeMux	{
+func scanAPsHandler(w http.ResponseWriter, r *http.Request) {
+	
+	ssids, err := AutomateAPScan(serialHandler, &messageBuffer, &bufferMutex)
+	if err != nil {
+		log.Printf("Error during AP scan automation: %v", err)                                    // Detailed log
+		http.Error(w, fmt.Sprintf("Failed to scan APs: %v", err), http.StatusInternalServerError) // Include error in response
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"status": "success", "aps": ssids})
+}
+
+func mmuxHandler() *http.ServeMux {
 
 	myHandler = http.NewServeMux()
 	myHandler.HandleFunc("/", servePage)
 	myHandler.HandleFunc("/send", sendCommand)
-	myHandler.HandleFunc("/receive", receiveMessages)
 	myHandler.HandleFunc("/ws", serveWs)
 	myHandler.HandleFunc("/connect_serial", connectSerialHandler)
+	myHandler.HandleFunc("/scan_aps", scanAPsHandler) // Register the new handler
 
 	return myHandler
 }
