@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 Serial Chat</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
+        body { font-family: Arial, sans-serif;}
         #messages { width: 80%; height: 300px; overflow-y: auto; border: 1px solid black; padding: 10px; margin: 20px auto; }
         input, button { padding: 10px; font-size: 16px; margin: 5px; }
+        .esp32-message { color: blue; text-align: left; }
+        .user-message { color: green; text-align: right; }
     </style>
 </head>
 <body>
@@ -18,11 +20,52 @@
 
     <script>
         const messagesDiv = document.getElementById("messages");
+        let websocket;
+
+        function connectWebSocket() {
+            websocket = new WebSocket("ws://localhost:5000/ws");
+
+            websocket.onmessage = function(event) {
+                const msg = event.data;
+                const p = document.createElement("p");
+                p.classList.add("esp32-message");
+                p.textContent = "ESP32: " + msg;
+                messagesDiv.appendChild(p);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            };
+
+            websocket.onclose = function(event) {
+                console.log("WebSocket connection closed.");
+                // Attempt to reconnect after a delay
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            websocket.onerror = function(error) {
+                console.error("WebSocket error:", error);
+            };
+        }
+
+        connectWebSocket(); // Establish WebSocket connection on page load
+
+        // Add event listener for Enter key
+        document.getElementById("commandInput").addEventListener("keydown", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault(); // Prevent form submission
+                sendCommand();
+            }
+        });
 
         async function sendCommand() {
             const command = document.getElementById("commandInput").value;
             if (!command.trim()) return;
             
+            // Display user message immediately
+            const p = document.createElement("p");
+            p.classList.add("user-message");
+            p.textContent = "You: " + command;
+            messagesDiv.appendChild(p);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
             fetch("/send", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -32,18 +75,7 @@
             document.getElementById("commandInput").value = "";
         }
 
-        async function fetchMessages() {
-            const response = await fetch("/receive");
-            const data = await response.json();
-            data.messages.forEach(msg => {
-                const p = document.createElement("p");
-                p.textContent = "ESP32: " + msg;
-                messagesDiv.appendChild(p);
-            });
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        setInterval(fetchMessages, 1000);
+        // Remove the fetchMessages function and the setInterval call
     </script>
 </body>
 </html>
