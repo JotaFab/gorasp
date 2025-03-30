@@ -23,7 +23,7 @@
         let websocket;
 
         function connectWebSocket() {
-            websocket = new WebSocket("ws://localhost:5000/ws");
+            websocket = new WebSocket("/ws");
 
             websocket.onmessage = function(event) {
                 const msg = event.data;
