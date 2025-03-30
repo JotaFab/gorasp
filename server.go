@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -18,53 +17,12 @@ import (
 var (
 	portName      string // Adjust based on your setup
 	baudRate      = 115200
-	serialPort    *serial.Port
+	serialHandler *SerialHandler
 	messageBuffer []string
 	bufferMutex   sync.Mutex
 	tmpl          = template.Must(template.ParseFiles("index.html"))
+	myHandler     *http.ServeMux
 )
-
-// Initialize the serial connection
-func initSerial(portName string) error {
-	config := &serial.Config{Name: portName, Baud: baudRate}
-	var err error
-	serialPort, err = serial.OpenPort(config)
-	if err != nil {
-		return err
-	}
-
-	// Start reading from serial in a goroutine
-	go readSerial()
-	return nil
-}
-
-// Read from the serial port
-func readSerial() {
-	buf := make([]byte, 128)
-	var tempBuf []byte // Temporary buffer to accumulate data
-	for {
-		n, err := serialPort.Read(buf)
-		if err != nil {
-			log.Println("Error reading from serial:", err)
-			continue
-		}
-		if n > 0 {
-			tempBuf = append(tempBuf, buf[:n]...) // Append new data to temp buffer
-			for {
-				i := bytes.IndexByte(tempBuf, '\n') // Check for newline
-				if i < 0 {
-					break // No newline found, continue reading
-				}
-				msg := string(tempBuf[:i]) // Extract the complete line
-				tempBuf = tempBuf[i+1:]    // Remove the processed line
-				log.Println("Received:", msg)
-				bufferMutex.Lock()
-				messageBuffer = append(messageBuffer, msg) // Append to message buffer
-				bufferMutex.Unlock()
-			}
-		}
-	}
-}
 
 // Serve the HTML page
 func servePage(w http.ResponseWriter, r *http.Request) {
@@ -82,13 +40,12 @@ func sendCommand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if serialPort != nil {
-		_, err := serialPort.Write([]byte(data.Command + "\n"))
+	if serialHandler != nil && serialHandler.port != nil {
+		err := serialHandler.SendCommand(data.Command)
 		if err != nil {
 			http.Error(w, "Failed to send command", http.StatusInternalServerError)
 			return
 		}
-		fmt.Println("Sent:", data.Command)
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"status": "sent", "command": data.Command})
 	} else {
@@ -174,7 +131,7 @@ func connectSerialHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = initSerial(foundPort)
+	err = serialHandler.Init(foundPort, baudRate)
 	if err != nil {
 		log.Println("Error initializing serial port:", err)
 		http.Error(w, "Failed to initialize serial port", http.StatusInternalServerError)
@@ -184,17 +141,20 @@ func connectSerialHandler(w http.ResponseWriter, r *http.Request) {
 
 	portName = foundPort // Update global portName
 	fmt.Println("Serial port connected on", portName)
+	go serialHandler.ReadSerial(&messageBuffer, &bufferMutex)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "success", "port": portName})
 }
 
-func main() {
-	http.HandleFunc("/", servePage)
-	http.HandleFunc("/send", sendCommand)
-	http.HandleFunc("/receive", receiveMessages)
-	http.HandleFunc("/ws", serveWs) // Register WebSocket endpoint
-	http.HandleFunc("/connect_serial", connectSerialHandler)
+func mmuxHandler()  *http.ServeMux	{
 
-	fmt.Println("Server started on port 5000")
-	log.Fatal(http.ListenAndServe(":5000", nil))
+	myHandler = http.NewServeMux()
+	myHandler.HandleFunc("/", servePage)
+	myHandler.HandleFunc("/send", sendCommand)
+	myHandler.HandleFunc("/receive", receiveMessages)
+	myHandler.HandleFunc("/ws", serveWs)
+	myHandler.HandleFunc("/connect_serial", connectSerialHandler)
+
+	return myHandler
 }

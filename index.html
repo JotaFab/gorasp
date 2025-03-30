@@ -5,11 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 Serial Chat</title>
     <style>
-        body { font-family: Arial, sans-serif;}
-        #messages { width: 80%; height: 300px; overflow-y: auto; border: 1px solid black; padding: 10px; margin: 20px auto; }
-        input, button { padding: 10px; font-size: 16px; margin: 5px; }
-        .esp32-message { color: blue; text-align: left; }
-        .user-message { color: green; text-align: right; }
+        body {
+            font-family: monospace;
+            background-color: #222;
+            color: #eee;
+        }
+        #messages {
+            width: 80%;
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #555;
+            padding: 10px;
+            margin: 20px auto;
+            background-color: #111;
+            white-space: pre-wrap;
+        }
+        input, button {
+            padding: 10px;
+            font-size: 16px;
+            margin: 5px;
+            background-color: #333;
+            color: #eee;
+            border: 1px solid #555;
+        }
+        .esp32-message {
+            color: #4CAF50; /* Green */
+            text-align: left;
+        }
+        .user-message {
+            color: #2196F3; /* Blue */
+            text-align: right;
+        }
     </style>
 </head>
 <body>
