@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat Serial</title>
+    <style>
+        #chat-output {
+            border: 1px solid #ccc;
+            height: 300px;
+            overflow-y: scroll;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        #command-form input[type="text"] {
+            width: 80%;
+            padding: 8px;
+            margin-right: 5px;
+        }
+        #command-form button {
+            padding: 8px 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chat Serial</h1>
+    <div id="chat-output"></div>
+    <form id="command-form">
+        <input type="text" id="command-input" placeholder="Ingrese comando">
+        <button type="submit">Enviar</button>
+    </form>
+
+    <script>
+        const chatOutput = document.getElementById('chat-output');
+        const commandForm = document.getElementById('command-form');
+        const commandInput = document.getElementById('command-input');
+
+        commandForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const command = commandInput.value;
+            if (command.trim() !== '') {
+                fetch('/send_command', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `command=${encodeURIComponent(command)}`,
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => { throw new Error(text) })
+                    }
+                    return response.text();
+                })
+                .then(() => {
+                    commandInput.value = '';
+                })
+                .catch(error => {
+                    console.error('Error al enviar comando:', error);
+                });
+            }
+        });
+
+        function fetchOutput() {
+            fetch('/get_output')
+                .then(response => response.json())
+                .then(data => {
+                    data.output.forEach(line => {
+                        const newLine = document.createElement('div');
+                        newLine.textContent = line.trim(); // Elimina espacios en blanco al final
+                        chatOutput.appendChild(newLine);
+                        chatOutput.scrollTop = chatOutput.scrollHeight; // Auto-scroll
+                    });
+                })
+                .catch(error => {
+                    console.error('Error al obtener output:', error);
+                });
+        }
+
+        // Obtener el output del serial periódicamente
+        setInterval(fetchOutput, 500); // Actualiza cada 500ms
+    </script>
+    <script src="https://encoding.spec.whatwg.org/encodings.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/text-encoding@0.7.0/lib/encoding.min.js"></script>
+</body>
+</html>
