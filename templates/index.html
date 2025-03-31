@@ -2,21 +2,92 @@
 <html>
 <head>
     <title>Chat Serial</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
+        body {
+            font-family: monospace, sans-serif;
+            background-color: #000;
+            color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: #00ff00; /* Terminal green */
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
         #chat-output {
-            border: 1px solid #ccc;
+            border: 1px solid #333;
+            background-color: #111;
             height: 300px;
             overflow-y: scroll;
             padding: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            flex-grow: 1; /* Allows it to take up available vertical space */
+            font-size: 1.1em;
+            line-height: 1.4;
         }
+
+        #chat-output div {
+            white-space: pre-wrap; /* Preserve whitespace and wrap lines */
+        }
+
+        #command-form {
+            display: flex;
+            gap: 5px;
+        }
+
         #command-form input[type="text"] {
-            width: 80%;
-            padding: 8px;
-            margin-right: 5px;
+            flex-grow: 1;
+            padding: 10px;
+            background-color: #222;
+            color: #f0f0f0;
+            border: 1px solid #333;
+            font-family: monospace;
+            font-size: 1.1em;
         }
+
         #command-form button {
-            padding: 8px 15px;
+            padding: 10px 15px;
+            background-color: #007bff; /* A more vibrant button color */
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 1.1em;
+        }
+
+        #command-form button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Media query for smaller screens (mobile view) */
+        @media (max-width: 600px) {
+            body {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+                margin-bottom: 15px;
+            }
+
+            #chat-output {
+                height: 200px;
+                font-size: 1em;
+            }
+
+            #command-form input[type="text"],
+            #command-form button {
+                font-size: 1em;
+                padding: 8px;
+            }
         }
     </style>
 </head>
